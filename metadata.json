@@ -1,0 +1,6 @@
+{
+  "name": "MediConnect",
+  "description": "Cloud-Based Hospital Appointment Management System connecting patients, doctors, and administrators with appointment booking, schedules, medical documents, and cloud analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
