@@ -1,14 +1,17 @@
 const express = require("express");
+const crypto = require("crypto");
 const router = express.Router();
 const db = require("../db");
+
+const hashPassword = (password) => crypto.createHash("sha256").update(password).digest("hex");
 
 // POST /api/auth/login - Authenticate user by email
 router.post("/login", async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
     }
 
     let query = "SELECT * FROM users WHERE email = ?";
@@ -26,6 +29,10 @@ router.post("/login", async (req, res) => {
     }
 
     const user = rows[0];
+
+    if (!user.password_hash || user.password_hash !== hashPassword(password)) {
+      return res.status(401).json({ error: "Invalid credentials or user not found" });
+    }
 
     // Fetch related profile based on role
     let profile = null;
@@ -54,9 +61,9 @@ router.post("/register", async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const { name, email, phone, date_of_birth, gender, address } = req.body;
+    const { name, email, phone, password, date_of_birth, gender, address } = req.body;
 
-    if (!name || !email) {
+    if (!name || !email || !password) {
       await connection.rollback();
       return res.status(400).json({ error: "Name and email are required" });
     }
@@ -70,8 +77,8 @@ router.post("/register", async (req, res) => {
 
     // Insert user
     const [userResult] = await connection.execute(
-      "INSERT INTO users (name, email, phone, role, created_at) VALUES (?, ?, ?, 'PATIENT', NOW())",
-      [name.trim(), email.trim().toLowerCase(), phone || ""]
+      "INSERT INTO users (name, email, phone, password_hash, role, created_at) VALUES (?, ?, ?, ?, 'PATIENT', NOW())",
+      [name.trim(), email.trim().toLowerCase(), phone || "", hashPassword(password)]
     );
     const userId = userResult.insertId;
 

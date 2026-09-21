@@ -291,7 +291,7 @@ export const INITIAL_DOCUMENTS: MedicalDocument[] = [
     file_type: 'PDF',
     file_size: '1.8 MB',
     s3_key: 'patient-documents/patient-1/Lipid_Profile_Blood_Report_Aug2026.pdf',
-    s3_url: 'https://mediconnect-medical-documents-2026.s3.ap-south-1.amazonaws.com/patient-documents/patient-1/Lipid_Profile_Blood_Report_Aug2026.pdf?AWSAccessKeyId=ASIAVEX&Signature=xyz&Expires=1790000000',
+    s3_url: '',
     uploaded_at: '2026-08-20T10:15:00Z',
   },
   {
@@ -302,7 +302,7 @@ export const INITIAL_DOCUMENTS: MedicalDocument[] = [
     file_type: 'PNG',
     file_size: '3.2 MB',
     s3_key: 'patient-documents/patient-1/Chest_XRay_PA_View.png',
-    s3_url: 'https://mediconnect-medical-documents-2026.s3.ap-south-1.amazonaws.com/patient-documents/patient-1/Chest_XRay_PA_View.png?AWSAccessKeyId=ASIAVEX&Signature=abc&Expires=1790000000',
+    s3_url: '',
     uploaded_at: '2026-09-15T11:45:00Z',
   },
   {
@@ -313,7 +313,7 @@ export const INITIAL_DOCUMENTS: MedicalDocument[] = [
     file_type: 'PDF',
     file_size: '4.5 MB',
     s3_key: 'patient-documents/patient-2/Brain_MRI_Screening_Summary.pdf',
-    s3_url: 'https://mediconnect-medical-documents-2026.s3.ap-south-1.amazonaws.com/patient-documents/patient-2/Brain_MRI_Screening_Summary.pdf?AWSAccessKeyId=ASIAVEX&Signature=def&Expires=1790000000',
+    s3_url: '',
     uploaded_at: '2026-09-18T14:30:00Z',
   },
 ];

@@ -2,6 +2,34 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
+router.post("/", async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    const { name, email, phone, department_id, specialization, qualification, experience = 0, consultation_fee = 500, available_days = [] } = req.body;
+    if (!name || !email || !department_id || !specialization || !qualification) {
+      return res.status(400).json({ error: "Name, email, department, specialization, and qualification are required" });
+    }
+    await connection.beginTransaction();
+    const [userResult] = await connection.execute(
+      "INSERT INTO users (name, email, phone, password_hash, role, created_at) VALUES (?, ?, ?, NULL, 'DOCTOR', NOW())",
+      [name.trim(), email.trim().toLowerCase(), phone || ""]
+    );
+    const [doctorResult] = await connection.execute(
+      `INSERT INTO doctors (user_id, department_id, specialization, qualification, experience, consultation_fee, status, rating, available_days, about, bio)
+       VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', 5.0, ?, ?, ?)` ,
+      [userResult.insertId, department_id, specialization, qualification, experience, consultation_fee, JSON.stringify(available_days), "", ""]
+    );
+    await connection.commit();
+    res.status(201).json({ doctor_id: doctorResult.insertId, user_id: userResult.insertId });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Create doctor error:", error);
+    res.status(500).json({ error: "Failed to create doctor" });
+  } finally {
+    connection.release();
+  }
+});
+
 // GET /api/doctors - List all doctors with users and department info
 router.get("/", async (req, res) => {
   try {
@@ -194,6 +222,25 @@ router.get("/:id/schedules", async (req, res) => {
   } catch (error) {
     console.error("Fetch schedules error:", error);
     res.status(500).json({ error: "Failed to fetch doctor schedules", details: error.message });
+  }
+});
+
+router.post("/:id/schedules", async (req, res) => {
+  try {
+    const { date, start_time, end_time, available = true, slots = [] } = req.body;
+    if (!date || !start_time || !end_time) {
+      return res.status(400).json({ error: "Date, start time, and end time are required" });
+    }
+    const [result] = await db.execute(
+      `INSERT INTO doctor_schedules (doctor_id, date, start_time, end_time, available, slots)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [req.params.id, date, start_time, end_time, available, JSON.stringify(slots)]
+    );
+    const [rows] = await db.execute("SELECT * FROM doctor_schedules WHERE schedule_id = ?", [result.insertId]);
+    res.status(201).json({ ...rows[0], slots });
+  } catch (error) {
+    console.error("Create schedule error:", error);
+    res.status(500).json({ error: "Failed to create doctor schedule" });
   }
 });
 

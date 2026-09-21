@@ -7,6 +7,9 @@ const authRoutes = require("./routes/auth");
 const appointmentRoutes = require("./routes/appointments");
 const doctorRoutes = require("./routes/doctors");
 const patientRoutes = require("./routes/patients");
+const notificationRoutes = require("./routes/notifications");
+const contactRoutes = require("./routes/contact");
+const departmentRoutes = require("./routes/departments");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,33 +23,27 @@ app.use("/api/auth", authRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/patients", patientRoutes);
-
-// Departments Endpoint
-app.get("/api/departments", async (req, res) => {
-  try {
-    const [rows] = await db.execute("SELECT * FROM departments ORDER BY department_id ASC");
-    res.json(rows);
-  } catch (error) {
-    console.error("Fetch departments error:", error);
-    res.status(500).json({ error: "Failed to fetch departments", details: error.message });
-  }
-});
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/contact", contactRoutes);
+app.use("/api/departments", departmentRoutes);
 
 // Health check
 app.get("/api/health", async (req, res) => {
   try {
-    // Quick DB ping test
-    await db.execute("SELECT 1");
+    const [rows] = await db.execute("SELECT 1 AS database_ready");
     res.json({
       status: "UP",
+      backend: "UP",
       database: "CONNECTED",
+      database_ready: rows[0]?.database_ready === 1,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     res.status(500).json({
       status: "DOWN",
+      backend: "UP",
       database: "DISCONNECTED",
-      error: error.message,
+      error: process.env.NODE_ENV === "production" ? "Database unavailable" : error.message,
     });
   }
 });

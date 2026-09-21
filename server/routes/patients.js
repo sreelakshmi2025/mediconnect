@@ -182,7 +182,7 @@ router.post("/:id/documents", async (req, res) => {
         file_type,
         file_size || "1.5 MB",
         s3_key || `patient-documents/patient-${id}/${file_name}`,
-        s3_url || `https://mediconnect-medical-documents-2026.s3.ap-south-1.amazonaws.com/patient-documents/patient-${id}/${file_name}`,
+        s3_url || process.env.S3_PUBLIC_BASE_URL || "",
       ]
     );
 
@@ -193,6 +193,17 @@ router.post("/:id/documents", async (req, res) => {
   } catch (error) {
     console.error("Upload document record error:", error);
     res.status(500).json({ error: "Failed to register document", details: error.message });
+  }
+});
+
+router.delete("/documents/:documentId", async (req, res) => {
+  try {
+    const [result] = await db.execute("DELETE FROM medical_documents WHERE document_id = ?", [req.params.documentId]);
+    if (!result.affectedRows) return res.status(404).json({ error: "Document not found" });
+    res.json({ message: "Document deleted successfully" });
+  } catch (error) {
+    console.error("Delete document error:", error);
+    res.status(500).json({ error: "Failed to delete document" });
   }
 });
 

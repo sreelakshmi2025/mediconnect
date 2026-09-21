@@ -54,7 +54,7 @@ interface AppContextType {
   contactMessages: ContactMessage[];
 
   // Auth actions
-  login: (email: string, password?: string) => { success: boolean; message: string; role?: UserRole };
+  login: (email: string, password?: string) => Promise<{ success: boolean; message: string; role?: UserRole }>;
   loginAsRole: (role: UserRole, specificUserId?: number) => void;
   logout: () => void;
   registerPatient: (data: {
@@ -65,7 +65,7 @@ interface AppContextType {
     gender: 'Male' | 'Female' | 'Other';
     address: string;
     password?: string;
-  }) => { success: boolean; message: string };
+  }) => Promise<{ success: boolean; message: string }>;
 
   // Appointment actions
   bookAppointment: (params: {
@@ -75,6 +75,7 @@ interface AppContextType {
     appointment_date: string;
     appointment_time: string;
     reason: string;
+    schedule_id?: number;
     document?: { name: string; type: 'PDF' | 'JPG' | 'PNG'; size: string };
   }) => { success: boolean; message: string; appointment?: Appointment };
 
@@ -148,54 +149,42 @@ const STORAGE_KEYS = {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.USERS);
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
-  });
+    const [users, setUsers] = useState<User[]>(INITIAL_USERS);
 
   const [patients, setPatients] = useState<Patient[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PATIENTS);
-    return saved ? JSON.parse(saved) : INITIAL_PATIENTS;
+      return INITIAL_PATIENTS;
   });
 
   const [doctors, setDoctors] = useState<Doctor[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.DOCTORS);
-    return saved ? JSON.parse(saved) : INITIAL_DOCTORS;
+      return INITIAL_DOCTORS;
   });
 
   const [departments, setDepartments] = useState<Department[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.DEPARTMENTS);
-    return saved ? JSON.parse(saved) : INITIAL_DEPARTMENTS;
+      return INITIAL_DEPARTMENTS;
   });
 
   const [schedules, setSchedules] = useState<DoctorSchedule[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
-    return saved ? JSON.parse(saved) : INITIAL_SCHEDULES;
+      return INITIAL_SCHEDULES;
   });
 
   const [appointments, setAppointments] = useState<Appointment[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.APPOINTMENTS);
-    return saved ? JSON.parse(saved) : INITIAL_APPOINTMENTS;
+      return INITIAL_APPOINTMENTS;
   });
 
   const [documents, setDocuments] = useState<MedicalDocument[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.DOCUMENTS);
-    return saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
+      return INITIAL_DOCUMENTS;
   });
 
   const [notes, setNotes] = useState<AppointmentNote[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.NOTES);
-    return saved ? JSON.parse(saved) : INITIAL_NOTES;
+      return INITIAL_NOTES;
   });
 
   const [notifications, setNotifications] = useState<Notification[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
-    return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
+      return INITIAL_NOTIFICATIONS;
   });
 
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CONTACT);
-    return saved ? JSON.parse(saved) : INITIAL_CONTACT_MESSAGES;
+      return INITIAL_CONTACT_MESSAGES;
   });
 
   const [currentUserId, setCurrentUserId] = useState<number | null>(() => {
@@ -222,21 +211,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setBackendStatus(res.online ? 'MySQL Database Connected' : 'Local Storage Mode');
 
       if (res.online) {
-        // Hydrate doctors, departments, and appointments if backend has rows
+          // Hydrate the shared view model from MySQL when the API is available.
         try {
-          const [docRes, deptRes, apptRes] = await Promise.allSettled([
+          const [docRes, deptRes, patientRes, apptRes] = await Promise.allSettled([
             api.getDoctors(),
             api.getDepartments(),
+            api.getPatients(),
             api.getAppointments(),
           ]);
 
-          if (docRes.status === 'fulfilled' && docRes.value?.length > 0) {
+          if (docRes.status === 'fulfilled') {
             setDoctors(docRes.value);
           }
-          if (deptRes.status === 'fulfilled' && deptRes.value?.length > 0) {
+          if (deptRes.status === 'fulfilled') {
             setDepartments(deptRes.value);
           }
-          if (apptRes.status === 'fulfilled' && apptRes.value?.length > 0) {
+          if (patientRes.status === 'fulfilled') {
+            setPatients(patientRes.value);
+            setUsers((prev) => {
+              const patientUsers = patientRes.value.map((patient) => patient.user).filter(Boolean) as User[];
+              return [...prev.filter((user) => user.role !== 'PATIENT'), ...patientUsers];
+            });
+          }
+          if (apptRes.status === 'fulfilled') {
             setAppointments(apptRes.value);
           }
         } catch (e) {
@@ -256,47 +253,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     checkBackendConnection();
   }, [checkBackendConnection]);
-
-  // Sync to localStorage
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-  }, [users]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
-  }, [patients]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.DOCTORS, JSON.stringify(doctors));
-  }, [doctors]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(departments));
-  }, [departments]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
-  }, [schedules]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify(appointments));
-  }, [appointments]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.DOCUMENTS, JSON.stringify(documents));
-  }, [documents]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
-  }, [notes]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
-  }, [notifications]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CONTACT, JSON.stringify(contactMessages));
-  }, [contactMessages]);
 
   useEffect(() => {
     if (currentUserId !== null) {
@@ -331,7 +287,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [currentUser, doctors]);
 
   // Auth
-  const login = (email: string, _password?: string) => {
+  const login = async (email: string, password = '') => {
+    if (isBackendConnected) {
+      try {
+        const result = await api.login(email, password);
+        setUsers((prev) => [...prev.filter((user) => user.user_id !== result.user.user_id), result.user]);
+        if (result.profile?.patient_id) setPatients((prev) => [...prev.filter((p) => p.patient_id !== result.profile.patient_id), result.profile]);
+        if (result.profile?.doctor_id) setDoctors((prev) => [...prev.filter((d) => d.doctor_id !== result.profile.doctor_id), result.profile]);
+        if (result.profile?.patient_id) {
+          const [patientDocuments, patientNotifications] = await Promise.all([
+            api.getPatientDocuments(result.profile.patient_id),
+            api.getNotifications(result.user.user_id),
+          ]);
+          setDocuments(patientDocuments);
+          setNotifications(patientNotifications);
+        }
+        if (result.profile?.doctor_id) {
+          const doctorSchedules = await api.getDoctorSchedules(result.profile.doctor_id);
+          setSchedules(doctorSchedules);
+          setNotifications(await api.getNotifications(result.user.user_id));
+        }
+        setCurrentUserId(result.user.user_id);
+        setActivePage(result.user.role === 'PATIENT' ? 'patient-dashboard' : result.user.role === 'DOCTOR' ? 'doctor-dashboard' : 'admin-dashboard');
+        return { success: true, message: `Welcome back, ${result.user.name}!`, role: result.user.role };
+      } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : 'Unable to sign in.' };
+      }
+    }
     const trimmed = email.trim().toLowerCase();
     const user = users.find((u) => u.email.toLowerCase() === trimmed);
     if (!user) {
@@ -373,14 +355,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActivePage('home');
   };
 
-  const registerPatient = (data: {
+  const registerPatient = async (data: {
     name: string;
     email: string;
     phone: string;
     date_of_birth: string;
     gender: 'Male' | 'Female' | 'Other';
     address: string;
+    password?: string;
   }) => {
+    if (isBackendConnected) {
+      try {
+        const result = await api.registerPatient({ ...data, password: data.password || '' });
+        setUsers((prev) => [...prev, result.user]);
+        setPatients((prev) => [...prev, result.patient]);
+        setCurrentUserId(result.user.user_id);
+        setActivePage('patient-dashboard');
+        return { success: true, message: 'Account created successfully! Welcome to MediConnect.' };
+      } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : 'Unable to register.' };
+      }
+    }
     const existing = users.find((u) => u.email.toLowerCase() === data.email.trim().toLowerCase());
     if (existing) {
       return { success: false, message: 'An account with this email address already exists.' };
@@ -432,6 +427,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         date_of_birth: data.date_of_birth,
         gender: data.gender,
         address: data.address.trim(),
+          password: data.password || '',
       }).catch((err) => {
         console.warn('Backend patient registration sync error:', err);
       });
@@ -448,6 +444,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     appointment_date: string;
     appointment_time: string;
     reason: string;
+    schedule_id?: number;
     document?: { name: string; type: 'PDF' | 'JPG' | 'PNG'; size: string };
   }) => {
     // 1. Check double-booking for the doctor at that date & time
@@ -753,7 +750,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ): MedicalDocument => {
     const nextDocId = documents.length > 0 ? Math.max(...documents.map((d) => d.document_id)) + 1 : 1;
     const s3Key = `patient-documents/patient-${patientId}/${file.name.replace(/\s+/g, '_')}`;
-    const s3Url = `https://mediconnect-medical-documents-2026.s3.ap-south-1.amazonaws.com/${s3Key}?AWSAccessKeyId=ASIA${Date.now()}&Expires=1800000000&Signature=AWS_SECURE_TOKEN`;
+    const s3BaseUrl = import.meta.env.VITE_S3_PUBLIC_BASE_URL || '';
+    const s3Url = s3BaseUrl ? `${s3BaseUrl.replace(/\/$/, '')}/${s3Key}` : '';
 
     const newDoc: MedicalDocument = {
       document_id: nextDocId,
@@ -801,6 +799,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteDocument = (documentId: number) => {
     setDocuments((prev) => prev.filter((d) => d.document_id !== documentId));
+    if (isBackendConnected) {
+      api.deletePatientDocument(documentId).catch((err) => console.warn('Backend document deletion error:', err));
+    }
   };
 
   // Schedules
@@ -811,6 +812,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       schedule_id: nextId,
     };
     setSchedules((prev) => [...prev, newSchedule]);
+      if (isBackendConnected) {
+        api.addDoctorSchedule(scheduleData).catch((err) => console.warn('Backend schedule creation error:', err));
+      }
   };
 
   const updateDoctorSchedule = (doctorId: number, availableDays: string[], _slots?: string[]) => {
@@ -894,12 +898,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setUsers((prev) => [...prev, newUser]);
     setDoctors((prev) => [...prev, newDoctor]);
+    if (isBackendConnected) api.addDoctor(data).catch((err) => console.warn('Backend doctor creation error:', err));
   };
 
   const updateDoctorStatus = (doctorId: number, status: 'ACTIVE' | 'INACTIVE') => {
     setDoctors((prev) =>
       prev.map((d) => (d.doctor_id === doctorId ? { ...d, status } : d))
     );
+    if (isBackendConnected) api.updateDoctorProfile(doctorId, { status }).catch((err) => console.warn('Backend doctor status error:', err));
   };
 
   const updatePatientStatus = (_patientId: number, _status: string) => {
@@ -913,12 +919,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       department_id: nextId,
     };
     setDepartments((prev) => [...prev, newDept]);
+    if (isBackendConnected) api.addDepartment(deptData).catch((err) => console.warn('Backend department creation error:', err));
   };
 
   const updateDepartment = (deptId: number, data: Partial<Department>) => {
     setDepartments((prev) =>
       prev.map((d) => (d.department_id === deptId ? { ...d, ...data } : d))
     );
+    if (isBackendConnected) api.updateDepartment(deptId, data).catch((err) => console.warn('Backend department update error:', err));
   };
 
   // Notifications
@@ -926,12 +934,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setNotifications((prev) =>
       prev.map((n) => (n.notification_id === notificationId ? { ...n, is_read: true } : n))
     );
+    if (isBackendConnected) api.markNotificationRead(notificationId).catch((err) => console.warn('Backend notification update error:', err));
   };
 
   const markAllNotificationsRead = (userId: number) => {
     setNotifications((prev) =>
       prev.map((n) => (n.user_id === userId ? { ...n, is_read: true } : n))
     );
+    if (isBackendConnected) api.markAllNotificationsRead(userId).catch((err) => console.warn('Backend notification update error:', err));
   };
 
   const markNotificationAsRead = (notificationId: number) => {
@@ -955,6 +965,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       created_at: new Date().toISOString(),
     };
     setContactMessages((prev) => [newMsg, ...prev]);
+    if (isBackendConnected) api.sendContactMessage(msg).catch((err) => console.warn('Backend contact message error:', err));
   };
 
   // Enriched Appointments (with joined entities)

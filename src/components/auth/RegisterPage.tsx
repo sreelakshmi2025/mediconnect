@@ -17,7 +17,7 @@ export const RegisterPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -48,7 +48,7 @@ export const RegisterPage: React.FC = () => {
       return;
     }
 
-    const res = registerPatient({
+    const res = await registerPatient({
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim(),

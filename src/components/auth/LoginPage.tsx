@@ -9,7 +9,7 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -18,7 +18,7 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-    const res = login(email, password);
+    const res = await login(email, password);
     if (!res.success) {
       setError(res.message);
     } else {

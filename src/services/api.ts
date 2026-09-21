@@ -1,7 +1,7 @@
 /**
  * MediConnect API Client Service
  * Connects the React frontend to the Express REST API (backed by MySQL / AWS RDS)
- * with graceful fallback to localStorage when the MySQL server is offline.
+ * backed by the Express REST API and MySQL database.
  */
 
 import {
@@ -14,6 +14,7 @@ import {
   MedicalDocument,
   AppointmentStatus,
   UserRole,
+  Notification,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -90,10 +91,10 @@ class ApiService {
   }
 
   // ==================== AUTH ====================
-  async login(email: string, role?: UserRole): Promise<{ user: User; profile: any }> {
+  async login(email: string, password: string, role?: UserRole): Promise<{ user: User; profile: any }> {
     return this.request<{ user: User; profile: any }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, role }),
+      body: JSON.stringify({ email, password, role }),
     });
   }
 
@@ -104,6 +105,7 @@ class ApiService {
     date_of_birth: string;
     gender: 'Male' | 'Female' | 'Other';
     address: string;
+    password: string;
   }): Promise<{ user: User; patient: Patient }> {
     return this.request<{ user: User; patient: Patient }>('/auth/register', {
       method: 'POST',
@@ -188,8 +190,22 @@ class ApiService {
     });
   }
 
+  async addDoctor(data: Record<string, unknown>) {
+    return this.request<{ doctor_id: number; user_id: number }>('/doctors', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async getDoctorSchedules(id: number): Promise<DoctorSchedule[]> {
     return this.request<DoctorSchedule[]>(`/doctors/${id}/schedules`);
+  }
+
+  async addDoctorSchedule(data: Omit<DoctorSchedule, 'schedule_id'>): Promise<DoctorSchedule> {
+    return this.request<DoctorSchedule>('/doctors/' + data.doctor_id + '/schedules', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // ==================== PATIENTS ====================
@@ -232,9 +248,37 @@ class ApiService {
     });
   }
 
+  async deletePatientDocument(id: number): Promise<{ message: string }> {
+    return this.request(`/patients/documents/${id}`, { method: 'DELETE' });
+  }
+
   // ==================== DEPARTMENTS ====================
   async getDepartments(): Promise<Department[]> {
     return this.request<Department[]>('/departments');
+  }
+
+  async addDepartment(data: Omit<Department, 'department_id'>) {
+    return this.request<Department>('/departments', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateDepartment(id: number, data: Partial<Department>) {
+    return this.request<{ message: string }>(`/departments/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async getNotifications(userId: number): Promise<Notification[]> {
+    return this.request<Notification[]>('/notifications?user_id=' + userId);
+  }
+
+  async markNotificationRead(id: number) {
+    return this.request(`/notifications/${id}/read`, { method: 'PUT' });
+  }
+
+  async markAllNotificationsRead(userId: number) {
+    return this.request(`/notifications/read-all/${userId}`, { method: 'PUT' });
+  }
+
+  async sendContactMessage(data: { name: string; email: string; subject: string; message: string }) {
+    return this.request('/contact', { method: 'POST', body: JSON.stringify(data) });
   }
 }
 
